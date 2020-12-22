@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
 
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
@@ -140,10 +144,26 @@ public class JavaDriverClient
         clusterBuilder.withCompression(compression);
         if (encryptionOptions.isEnabled())
         {
-            SSLContext sslContext;
-            sslContext = SSLFactory.createSSLContext(encryptionOptions, true);
+            TrustManager trm = new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            };
+
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, new TrustManager[] { trm }, null);
+
+            //SSLContext sslContext;
+            //sslContext = SSLFactory.createSSLContext(encryptionOptions, true);
             SSLOptions sslOptions = JdkSSLOptions.builder()
-                                                 .withSSLContext(sslContext)
+                                                 .withSSLContext(sc)
                                                  .withCipherSuites(encryptionOptions.cipherSuitesArray()).build();
             clusterBuilder.withSSL(sslOptions);
         }
